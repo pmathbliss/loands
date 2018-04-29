@@ -58,5 +58,17 @@ namespace loands.Properties {
                 this["Months"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Monthly")]
+        public string PaymentFrequency {
+            get {
+                return ((string)(this["PaymentFrequency"]));
+            }
+            set {
+                this["PaymentFrequency"] = value;
+            }
+        }
     }
 }

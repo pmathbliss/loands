@@ -13,11 +13,11 @@ namespace loands.Properties {
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "15.6.0.0")]
-    internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
+    internal sealed partial class Loans : global::System.Configuration.ApplicationSettingsBase {
         
-        private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
+        private static Loans defaultInstance = ((Loans)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Loans())));
         
-        public static Settings Default {
+        public static Loans Default {
             get {
                 return defaultInstance;
             }
@@ -32,30 +32,6 @@ namespace loands.Properties {
             }
             set {
                 this["LoansData"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("0")]
-        public decimal MonthlyPayment {
-            get {
-                return ((decimal)(this["MonthlyPayment"]));
-            }
-            set {
-                this["MonthlyPayment"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("1")]
-        public int Months {
-            get {
-                return ((int)(this["Months"]));
-            }
-            set {
-                this["Months"] = value;
             }
         }
     }

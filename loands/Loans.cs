@@ -31,12 +31,19 @@ namespace loands
             loans.Columns.Add(new DataColumn("Rate", typeof(Double)));
             loans.Columns.Add(new DataColumn("Minimum", typeof(Double)));
             loans.Columns.Add(new DataColumn("AmountLeft", typeof(Double)));
-            loans.Columns.Add(new DataColumn("Last Payment", typeof(Double)));
+            loans.Columns.Add(new DataColumn("LastPaymentAmount", typeof(Double)));
+            loans.Columns.Add(new DataColumn("InterestPaidAmount", typeof(Double)));
+            loans.Columns.Add(new DataColumn("MinimumPayoff", typeof(DateTime)));
+
 
 
             if (Properties.Settings.Default.LoansData.Length > 0)
             {
                 DataTable dt = JsonConvert.DeserializeObject<DataTable>(Properties.Settings.Default.LoansData);
+
+                var home = dt.Columns["InterestPaidAmount"];
+                home.ColumnName = "InterestPaidAmount";
+                dt.Columns.Remove(home);
 
                 loans.Merge(dt);
             }
@@ -56,11 +63,16 @@ namespace loands
             txtMonthlyPayment.DataBindings.Add("Text", Properties.Settings.Default, "MonthlyPayment");
             nudMonths.DataBindings.Add("Value", Properties.Settings.Default, "Months");
 
+            Retotal(true);
+        }
 
-            dgvLoans.Columns[1].DefaultCellStyle.Format = "c";
-            dgvLoans.Columns[3].DefaultCellStyle.Format = "c";
-            dgvLoans.Columns[4].DefaultCellStyle.Format = "c";
-            dgvLoans.Columns[5].DefaultCellStyle.Format = "c";
+        private DateTime NumberOfPayments(double rate, double presentValue, double paymentAmount, double paymentsPerYear = 12.0)
+        {
+            double paymentsNumber = 0;
+
+            paymentsNumber = (-1.0) * (Math.Log10(1.0 - (presentValue*rate/100)/(paymentAmount* paymentsPerYear)))/(paymentsPerYear * Math.Log10(1.0 + rate/(paymentsPerYear * 100)));
+
+            return DateTime.Now.AddYears((int)paymentsNumber);
         }
 
         private void btnAddLoan_Click(object sender, EventArgs e)
@@ -86,7 +98,7 @@ namespace loands
                         idx++;
                         string loanKey = $"Loan {loanRows["ID"].ToString()}";
                         loanRows["AmountLeft"] = loanRows["Total"];
-                        loanRows["Last Payment"] = Decimal.Zero;
+                        loanRows["LastPaymentAmount"] = Decimal.Zero;
                         //loanRows["Date"] = lastPayment;
                         payments.Columns.Add(new DataColumn(loanKey, typeof(Double)));
                         schedule.Columns.Add(new DataColumn(loanKey, typeof(Double)));
@@ -108,12 +120,56 @@ namespace loands
             {
                 MessageBox.Show(ex.Message);
             }
+
+
             btnAddLoan.Enabled = true;
+
+            Retotal();
+
             Cursor.Current = Cursors.Default;
 
             dgvPayments.ResumeLayout();
             dgvSchedule.ResumeLayout();
 
+        }
+
+        private void Retotal(bool exclude = false)
+        {
+            decimal amount = loans.Compute("SUM(Total)", "").CastTo<Decimal>();
+
+            txtTotalLoans.Text = amount.ToInvariantString();
+
+
+             amount = loans.Compute("SUM(AmountLeft)", "").CastTo<Decimal>();
+
+            txtAmountLeft.Text = amount.ToInvariantString();
+
+
+            if(!exclude)
+            {
+                amount = loans.Compute("SUM(InterestPaidAmount)", "").CastTo<Decimal>();
+
+                txtTotalInterest.Text = amount.ToInvariantString();
+            }
+
+
+            decimal amountLeft = Decimal.Zero;
+            decimal minAmount = Decimal.Zero;
+            decimal total = Decimal.Zero;
+            decimal rate = Decimal.Zero;
+            decimal lastPayment = Decimal.Zero;
+            decimal interestPaid = Decimal.Zero;
+            decimal amountPlusInterest = Decimal.Zero;
+            foreach (DataRow loan in loans.Rows)
+            {
+
+                Decimal.TryParse(loan["Minimum"].ToString(), out minAmount);
+                Decimal.TryParse(loan["Total"].ToString(), out total);
+                Decimal.TryParse(loan["AmountLeft"].ToString(), out amountLeft);
+                Decimal.TryParse(loan["Rate"].ToString(), out rate);
+                Decimal.TryParse(loan["InterestPaidAmount"].ToString(), out interestPaid);
+                loan["MinimumPayoff"] = NumberOfPayments((double)rate, (double)total, (double)minAmount);
+            }
         }
 
         private void MoreMonth()
@@ -209,6 +265,7 @@ namespace loands
             decimal total = Decimal.Zero;
             decimal rate = Decimal.Zero;
             decimal lastPayment = Decimal.Zero;
+            decimal interestPaid = Decimal.Zero;
             decimal amountPlusInterest = Decimal.Zero;
             DataRow[] sortedLoans = loans.Select("Total > 0", "Total DESC");
             foreach (DataRow loan in sortedLoans)
@@ -219,18 +276,22 @@ namespace loands
                 Decimal.TryParse(loan["Total"].ToString(), out total);
                 Decimal.TryParse(loan["AmountLeft"].ToString(),out amountLeft);
                 Decimal.TryParse(loan["Rate"].ToString(), out rate);
+                Decimal.TryParse(loan["InterestPaidAmount"].ToString(), out interestPaid);
 
                 if (total == 0 || amountLeft == 0)
                 {
                     continue;
                 }
                 amountPlusInterest = (1 + rate / 1200) * amountLeft;
+                interestPaid += (rate / 1200) * amountLeft;
                 amountLeft = amountPlusInterest - minAmount < 0 ? 0 : amountPlusInterest - minAmount;
                 lastPayment = amountPlusInterest - amountLeft;
                 loan["AmountLeft"] = amountLeft;
-                loan["Last Payment"] = lastPayment;
-               // loadRow[loanKey] = lastPayment;
+                loan["LastPaymentAmount"] = lastPayment;
+                loan["InterestPaidAmount"] = interestPaid;
+                // loadRow[loanKey] = lastPayment;
                 left -= lastPayment;
+
                 //minRow = loan;
             }
 
@@ -262,7 +323,7 @@ namespace loands
                     left = 0;
                 }
                 loan["AmountLeft"] = amountLeft;
-                loan["Last Payment"] = lastPayment;
+                loan["LastPaymentAmount"] = lastPayment;
 
             }
             
@@ -283,7 +344,7 @@ namespace loands
             {
                 string loanKey = $"Loan {loanRow["ID"].ToString()}";
 
-                paymentRow[loanKey] = loanRow["Last Payment"];
+                paymentRow[loanKey] = loanRow["LastPaymentAmount"];
                 paymentRow["Date"] = lastPayment;
                 paymentRow["Payment"] = monthly;
                 scheduleRow["Date"] = lastPayment;
@@ -368,7 +429,7 @@ namespace loands
             {
                 string loanKey = $"Loan {loanRows["ID"].ToString()}";
                 loanRows["AmountLeft"] = loanRows["Total"];
-                loanRows["Last Payment"] = Decimal.Zero;
+                loanRows["LastPaymentAmount"] = Decimal.Zero;
                 //loanRows["Date"] = lastPayment;
                 payments.Columns.Add(new DataColumn(loanKey, typeof(Double)));
                 schedule.Columns.Add(new DataColumn(loanKey, typeof(Double)));
@@ -398,6 +459,11 @@ namespace loands
                 wb.SaveAs(Path.Combine(folderPath, "Loans.xlsx"));
             }
             Process.Start(Path.Combine(folderPath, "Loans.xlsx"));
+        }
+
+        private void gbStatistic_Enter(object sender, EventArgs e)
+        {
+
         }
     }
 
